@@ -8,8 +8,6 @@ import tempfile
 import urllib.parse
 from b2sdk.v2 import InMemoryAccountInfo, B2Api
 
-st.set_option('server.maxUploadSize', 1024)  # Allow up to 1GB per file
-
 # ─── Backblaze B2 Credentials ───
 B2_KEY_ID = '0057d19983190740000000001'
 B2_APP_KEY = 'K0050E3EGgdBJduyi+MOTBZZzk4Y+go'
