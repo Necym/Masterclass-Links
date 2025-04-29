@@ -23,7 +23,7 @@ bucket = b2_api.get_bucket_by_id(BUCKET_ID)
 
 # ─── Streamlit GUI Setup ───
 st.set_page_config(page_title="SCORM Review Links")
-st.title("SCORM Review Link Generator")
+st.title("SCORM Review Link")
 
 mode = st.sidebar.radio("Choose Mode", ["View Links", "Upload New Language"])
 
