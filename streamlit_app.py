@@ -2,6 +2,7 @@
 
 import streamlit as st
 import os
+import urllib.parse
 from b2sdk.v2 import InMemoryAccountInfo, B2Api
 
 # ─── Backblaze B2 Credentials ───
@@ -54,8 +55,10 @@ if selected_language:
         st.subheader(f"SCORM Packages in {selected_language}:")
 
         for scorm_folder in sorted_scorms:
-            review_link = f"{BASE_URL}/{selected_language}/{scorm_folder}/story.html"
-            st.markdown(f"[📄 {scorm_folder}]({review_link})")
+            encoded_folder = urllib.parse.quote(scorm_folder)
+            display_name = scorm_folder.replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('\\', '\\\\')
+            review_link = f"{BASE_URL}/{selected_language}/{encoded_folder}/story.html"
+            st.markdown(f"[📄 {display_name}]({review_link})")
     else:
         st.info(f"No SCORM courses found inside {selected_language}.")
 
