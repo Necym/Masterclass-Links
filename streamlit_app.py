@@ -1,4 +1,4 @@
-# 📦 Streamlit App: Search Language ➔ Show SCORM Review Links + Upload Mode
+# 📦 Streamlit App: View SCORM Links + Upload New Language
 
 import streamlit as st
 import os
@@ -21,68 +21,72 @@ b2_api = B2Api(info)
 b2_api.authorize_account("production", B2_KEY_ID, B2_APP_KEY)
 bucket = b2_api.get_bucket_by_id(BUCKET_ID)
 
-# ─── Streamlit GUI Setup ───
+# ─── Streamlit Setup ───
 st.set_page_config(page_title="SCORM Review Links")
-st.title("SCORM Review Link")
+st.title("SCORM Review Link Generator")
 
 mode = st.sidebar.radio("Choose Mode", ["View Links", "Upload New Language"])
 
+# ─── View Mode ───
 if mode == "View Links":
     all_files = bucket.ls('')
     language_folders = set()
     for file_version_info, folder_name in all_files:
-        if folder_name is not None:
+        if folder_name:
             language = folder_name.strip('/').split('/')[0]
             language_folders.add(language)
 
-    sorted_languages = sorted(list(language_folders))
+    sorted_languages = sorted(language_folders)
     selected_language = st.selectbox("Select Language:", sorted_languages)
 
     if selected_language:
         subfolders = set()
         all_files = bucket.ls(f"{selected_language}/")
         for file_version_info, folder_name in all_files:
-            if folder_name is not None:
+            if folder_name:
                 parts = folder_name.strip('/').split('/')
                 if len(parts) >= 2:
                     subfolders.add(parts[1])
 
-        sorted_scorms = sorted(list(subfolders))
+        sorted_scorms = sorted(subfolders)
 
         if sorted_scorms:
             st.subheader(f"SCORM Packages in {selected_language}:")
             for scorm_folder in sorted_scorms:
-                encoded_folder = urllib.parse.quote(scorm_folder)
-                display_name = scorm_folder.replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('\\', '\\\\')
-                review_link = f"{BASE_URL}/{selected_language}/{encoded_folder}/story.html"
-                st.markdown(f"[📄 {display_name}]({review_link})")
-        else:
-            st.info(f"No SCORM courses found inside {selected_language}.")
+                # Safe display name
+                safe_display = scorm_folder.replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('\\', '\\\\')
 
+                # URL encode for safe link
+                encoded_lang = urllib.parse.quote(selected_language)
+                encoded_folder = urllib.parse.quote(scorm_folder)
+                review_link = f"{BASE_URL}/{encoded_lang}/{encoded_folder}/story.html"
+
+                # Display
+                st.markdown(f"📄 [{safe_display}]({review_link})", unsafe_allow_html=False)
+        else:
+            st.info(f"No SCORM courses found under '{selected_language}'.")
+
+# ─── Upload Mode ───
 elif mode == "Upload New Language":
-    language_name = st.text_input("Enter new language folder name (e.g., Arabic)")
+    language_name = st.text_input("Enter new language folder name (e.g., German)")
 
     if language_name:
-        # Check if language already exists
+        # Check if language exists
         all_files = bucket.ls('')
-        existing_languages = set()
-        for file_version_info, folder_name in all_files:
-            if folder_name is not None:
-                existing_languages.add(folder_name.strip('/').split('/')[0])
+        existing_languages = {folder_name.strip('/').split('/')[0] for _, folder_name in all_files if folder_name}
 
         if language_name in existing_languages:
-            confirm_delete = st.checkbox(f"⚠️ '{language_name}' already exists. Check to confirm deletion of existing content.")
+            confirm_delete = st.checkbox(f"⚠️ '{language_name}' already exists. Check to confirm deletion of all contents.")
             if confirm_delete:
                 if st.button("Delete and Upload New SCORM Files"):
-                    # Delete existing
-                    st.warning(f"Deleting all contents under '{language_name}/'...")
+                    st.warning(f"Deleting all files under '{language_name}/'...")
                     for file_version_info, folder_name in bucket.ls(f"{language_name}/"):
                         bucket.delete_file_version(file_version_info.id_, file_version_info.file_name)
                     st.success(f"✅ All existing files under '{language_name}' deleted.")
         else:
-            st.info(f"'{language_name}' does not exist. Ready to upload.")
+            st.info(f"'{language_name}' does not exist yet. Ready to upload.")
 
-        uploaded_files = st.file_uploader("Upload one or more SCORM ZIP files", type=["zip"], accept_multiple_files=True)
+        uploaded_files = st.file_uploader("Upload SCORM ZIP files", type=["zip"], accept_multiple_files=True)
 
         if uploaded_files and st.button("Upload SCORM Files"):
             with st.spinner("Processing uploads..."):
@@ -90,18 +94,23 @@ elif mode == "Upload New Language":
                     zip_name = os.path.splitext(uploaded.name)[0]
                     temp_dir = tempfile.mkdtemp()
                     zip_path = os.path.join(temp_dir, uploaded.name)
+
                     with open(zip_path, "wb") as f:
                         f.write(uploaded.read())
-                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                        zip_ref.extractall(os.path.join(temp_dir, zip_name))
 
-                    for root, _, files in os.walk(os.path.join(temp_dir, zip_name)):
+                    extract_path = os.path.join(temp_dir, zip_name)
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        zip_ref.extractall(extract_path)
+
+                    for root, _, files in os.walk(extract_path):
                         for file in files:
                             local_path = os.path.join(root, file)
-                            relative_path = os.path.relpath(local_path, os.path.join(temp_dir, zip_name)).replace("\\", "/")
+                            relative_path = os.path.relpath(local_path, extract_path).replace("\\", "/")
                             b2_path = f"{language_name}/{zip_name}/{relative_path}"
                             bucket.upload_local_file(local_file=local_path, file_name=b2_path)
+
                     shutil.rmtree(temp_dir)
-                st.success("✅ All SCORM files uploaded successfully.")
+
+                st.success("✅ SCORM files uploaded successfully.")
 
 st.caption("Developed for instant SCORM review link generation and management.")
