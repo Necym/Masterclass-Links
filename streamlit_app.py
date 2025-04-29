@@ -18,7 +18,7 @@ b2_api.authorize_account("production", B2_KEY_ID, B2_APP_KEY)
 bucket = b2_api.get_bucket_by_id(BUCKET_ID)
 
 # ─── Streamlit GUI Setup ───
-st.set_page_config(page_title="SCORM Review Links", page_icon="\ud83d\udccd")
+st.set_page_config(page_title="SCORM Review Links", page_icon="📍")
 st.title("\ud83d\udccd SCORM Review Link Generator")
 
 # ─── Step 1: Detect available languages ───
