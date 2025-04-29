@@ -1,4 +1,4 @@
-# 📦 Streamlit App: Search Language ➔ Show SCORM Review Links
+# 📦 Streamlit App: Search Language ➔ Show SCORM Review Links (Fully Corrected)
 
 import streamlit as st
 import os
@@ -24,7 +24,7 @@ st.title("SCORM Review Link Generator")
 # ─── Step 1: Detect available languages ───
 
 # List all folders (prefixes)
-all_files = bucket.ls('', show_versions=False)
+all_files = bucket.ls('')
 language_folders = set()
 
 for file_version_info, folder_name in all_files:
@@ -40,7 +40,7 @@ selected_language = st.selectbox("Select Language:", sorted_languages)
 if selected_language:
     # ─── Step 3: Find SCORM folders inside selected language ───
     subfolders = set()
-    all_files = bucket.ls(f"{selected_language}/", show_versions=False)
+    all_files = bucket.ls(f"{selected_language}/")
 
     for file_version_info, folder_name in all_files:
         if folder_name is not None:
@@ -59,4 +59,4 @@ if selected_language:
     else:
         st.info(f"No SCORM courses found inside {selected_language}.")
 
-st.caption("Developed for instant SCORM review link generation")
+st.caption("Developed for instant SCORM review link generation.")
