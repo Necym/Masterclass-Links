@@ -18,8 +18,8 @@ b2_api.authorize_account("production", B2_KEY_ID, B2_APP_KEY)
 bucket = b2_api.get_bucket_by_id(BUCKET_ID)
 
 # ─── Streamlit GUI Setup ───
-st.set_page_config(page_title="SCORM Review Links", page_icon="📍")
-st.title("\ud83d\udccd SCORM Review Link Generator")
+st.set_page_config(page_title="SCORM Review Links")
+st.title("SCORM Review Link Generator")
 
 # ─── Step 1: Detect available languages ───
 
@@ -55,8 +55,8 @@ if selected_language:
 
         for scorm_folder in sorted_scorms:
             review_link = f"{BASE_URL}/{selected_language}/{scorm_folder}/story.html"
-            st.markdown(f"\ud83d\udd17 [{scorm_folder}]({review_link})")
+            st.markdown(f"[📄 {scorm_folder}]({review_link})")
     else:
         st.info(f"No SCORM courses found inside {selected_language}.")
 
-st.caption("Developed for instant SCORM review link generation \ud83d\ude80")
+st.caption("Developed for instant SCORM review link generation")
