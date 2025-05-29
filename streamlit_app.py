@@ -7,6 +7,10 @@ import urllib.parse
 import hashlib
 import requests
 
+# ─── Streamlit Page Config (MUST be first) ───
+st.set_page_config(page_title="SCORM Review Links")
+st.title("SCORM Review Link Generator")
+
 # ─── Backblaze B2 Credentials ───
 B2_KEY_ID   = "0057d19983190740000000003"
 B2_APP_KEY  = "K005tH7/zOTPfBmFlyDMy2cYamvw5y8"
@@ -24,12 +28,16 @@ def authorize_b2():
     resp.raise_for_status()
     return resp.json()
 
-auth = authorize_b2()
-API_URL      = auth["apiUrl"]
-AUTH_TOKEN   = auth["authorizationToken"]
-ACCOUNT_ID   = auth["accountId"]
+try:
+    auth = authorize_b2()
+    API_URL    = auth["apiUrl"]
+    AUTH_TOKEN = auth["authorizationToken"]
+    ACCOUNT_ID = auth["accountId"]
+except Exception as e:
+    st.error(f"❌ Authorization failed: {e}")
+    st.stop()
 
-# ─── Helper: Find your bucketId ───
+# ─── Helper: Get Bucket ID ───
 @st.cache_data(ttl=3600)
 def get_bucket_id():
     payload = {"accountId": ACCOUNT_ID}
@@ -44,22 +52,23 @@ def get_bucket_id():
             return b["bucketId"]
     raise RuntimeError(f"Bucket {BUCKET_NAME!r} not found")
 
-BUCKET_ID = get_bucket_id()
+try:
+    BUCKET_ID = get_bucket_id()
+    st.success("✅ Connected to Backblaze B2.")
+except Exception as e:
+    st.error(f"❌ Failed to find bucket: {e}")
+    st.stop()
 
 # ─── B2 Operations ───
 def list_files(prefix=""):
-    payload = {
-        "bucketId": BUCKET_ID,
-        "prefix": prefix,
-        "maxFileCount": 10000
-    }
+    payload = {"bucketId": BUCKET_ID, "prefix": prefix, "maxFileCount": 10000}
     resp = requests.post(
         f"{API_URL}/b2api/{API_VER}/b2_list_file_names",
         headers={"Authorization": AUTH_TOKEN},
         json=payload
     )
     resp.raise_for_status()
-    return resp.json()["files"]  # each: {fileName, fileId, ...}
+    return resp.json()["files"]  # each entry has fileName, fileId
 
 def delete_file_version(file_name, file_id):
     payload = {"fileName": file_name, "fileId": file_id}
@@ -96,46 +105,42 @@ def upload_file(local_path, b2_path):
     resp.raise_for_status()
 
 # ─── Streamlit UI ───
-st.set_page_config(page_title="SCORM Review Links")
-st.title("SCORM Review Link Generator")
-
 mode = st.sidebar.radio("Mode", ["View Links", "Upload New Language"])
 
 if mode == "View Links":
-    # gather all file names
     files = list_files("")
     langs = {f["fileName"].split("/",1)[0] for f in files if "/" in f["fileName"]}
-    sel = st.selectbox("Select Language:", sorted(langs))
+    selected = st.selectbox("Select Language:", sorted(langs))
 
-    if sel:
-        sub = {
+    if selected:
+        pkgs = {
             fn.split("/")[1]
             for fn in (f["fileName"] for f in files)
-            if fn.startswith(f"{sel}/") and fn.count("/") >= 2
+            if fn.startswith(f"{selected}/") and fn.count("/") >= 2
         }
-        if sub:
-            st.subheader(f"SCORM Packages in {sel}:")
-            for pkg in sorted(sub):
+        if pkgs:
+            st.subheader(f"SCORM Packages in {selected}:")
+            for pkg in sorted(pkgs):
                 safe = pkg.replace("[","\\[").replace("]","\\]")
-                link = f"{BASE_URL}/{urllib.parse.quote(sel)}/{urllib.parse.quote(pkg)}/story.html"
+                link = f"{BASE_URL}/{urllib.parse.quote(selected)}/{urllib.parse.quote(pkg)}/story.html"
                 st.markdown(f"📄 [{safe}]({link})")
         else:
             st.info("No SCORM packages found.")
 
 elif mode == "Upload New Language":
-    langs = {f["fileName"].split("/",1)[0] for f in list_files("") if "/" in f["fileName"]}
-    new_lang = st.text_input("Language folder name (e.g. German):")
+    existing = {f["fileName"].split("/",1)[0] for f in list_files("") if "/" in f["fileName"]}
+    lang = st.text_input("Language folder name (e.g. German):")
 
-    if new_lang:
-        if new_lang in langs:
-            if st.checkbox(f"⚠️ Delete existing '{new_lang}/' first"):
+    if lang:
+        if lang in existing:
+            if st.checkbox(f"⚠️ Delete existing '{lang}/' first"):
                 if st.button("Delete & Start Upload"):
                     with st.spinner("Deleting…"):
-                        for f in list_files(f"{new_lang}/"):
+                        for f in list_files(f"{lang}/"):
                             delete_file_version(f["fileName"], f["fileId"])
                     st.success("✅ Deleted old files.")
         else:
-            st.info(f"'{new_lang}' is new; ready to upload.")
+            st.info(f"'{lang}' is new; ready to upload.")
 
         uploads = st.file_uploader("SCORM ZIPs", type="zip", accept_multiple_files=True)
         if uploads and st.button("Start Upload"):
@@ -153,7 +158,7 @@ elif mode == "Upload New Language":
                         for fn in fs:
                             lp = os.path.join(root, fn)
                             rel = os.path.relpath(lp, ext).replace("\\","/")
-                            b2p = f"{new_lang}/{base}/{rel}"
+                            b2p = f"{lang}/{base}/{rel}"
                             upload_file(lp, b2p)
                     shutil.rmtree(tmp)
                 st.success("✅ Upload complete.")
