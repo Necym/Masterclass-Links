@@ -18,7 +18,8 @@ b2_api = B2Api(info)
 
 try:
     b2_api.authorize_account("production", B2_KEY_ID, B2_APP_KEY)
-    bucket = b2_api.get_bucket_by_name(BUCKET_NAME)
+    buckets = b2_api.list_buckets()
+    bucket = next(b for b in buckets if b.name == BUCKET_NAME)
     st.success("✅ Connected to Backblaze B2.")
 except Exception as e:
     st.error(f"❌ Failed to connect to Backblaze B2: {e}")
