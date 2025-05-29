@@ -18,7 +18,7 @@ info = InMemoryAccountInfo()
 b2_api = B2Api(info)
 
 try:
-    b2_api.authorize_account("auto", B2_KEY_ID, B2_APP_KEY)
+    b2_api.authorize_account("production", "0057d19983190740000000001", "K0050E3EGgdBJduyi+MOTBZZzk4Y+go")
     bucket = b2_api.get_bucket_by_id(BUCKET_ID)
 except Exception as e:
     st.error(f"❌ Failed to connect to Backblaze B2: {e}")
