@@ -9,18 +9,17 @@ from b2sdk.v2 import InMemoryAccountInfo, B2Api
 # ─── Backblaze B2 Credentials ───
 B2_KEY_ID = "0057d19983190740000000003"
 B2_APP_KEY = "K005tH7/zOTPfBmFlyDMy2cYamvw5y8"
-BUCKET_ID = "774d61f9d938638199600714"
 BUCKET_NAME = "filesfornecym"
 BASE_URL = f"https://f005.backblazeb2.com/file/{BUCKET_NAME}"
 
-
-# ─── Connect to Backblaze ───
+# ─── Connect to Backblaze B2 ───
 info = InMemoryAccountInfo()
 b2_api = B2Api(info)
 
 try:
     b2_api.authorize_account("production", B2_KEY_ID, B2_APP_KEY)
     bucket = b2_api.get_bucket_by_name(BUCKET_NAME)
+    st.success("✅ Connected to Backblaze B2.")
 except Exception as e:
     st.error(f"❌ Failed to connect to Backblaze B2: {e}")
     st.stop()
@@ -33,11 +32,13 @@ mode = st.sidebar.radio("Choose Mode", ["View Links", "Upload New Language"])
 
 # ─── View Mode ───
 if mode == "View Links":
-    all_files = bucket.ls('')
     language_folders = set()
-    for file_version_info, folder_name in all_files:
-        if folder_name:
-            language = folder_name.strip('/').split('/')[0]
+    all_files = []
+    for entry in b2_api.list_file_names(bucket.id_):
+        file_name = entry.file_name
+        all_files.append((entry, file_name))
+        if file_name:
+            language = file_name.strip('/').split('/')[0]
             language_folders.add(language)
 
     sorted_languages = sorted(language_folders)
@@ -45,12 +46,11 @@ if mode == "View Links":
 
     if selected_language:
         subfolders = set()
-        all_files = bucket.ls(f"{selected_language}/")
-        for file_version_info, folder_name in all_files:
-            if folder_name:
-                parts = folder_name.strip('/').split('/')
-                if len(parts) >= 2:
-                    subfolders.add(parts[1])
+        filtered_files = [f for f in all_files if f[1].startswith(f"{selected_language}/")]
+        for file_version_info, file_name in filtered_files:
+            parts = file_name.strip('/').split('/')
+            if len(parts) >= 2:
+                subfolders.add(parts[1])
 
         sorted_scorms = sorted(subfolders)
 
@@ -70,17 +70,22 @@ elif mode == "Upload New Language":
     language_name = st.text_input("Enter new language folder name (e.g., German)")
 
     if language_name:
-        all_files = bucket.ls('')
-        existing_languages = {folder_name.strip('/').split('/')[0] for _, folder_name in all_files if folder_name}
+        all_files = []
+        existing_languages = set()
+        for entry in b2_api.list_file_names(bucket.id_):
+            file_name = entry.file_name
+            all_files.append((entry, file_name))
+            if file_name:
+                existing_languages.add(file_name.strip('/').split('/')[0])
 
         if language_name in existing_languages:
             confirm_delete = st.checkbox(f"⚠️ '{language_name}' already exists. Check to confirm deletion of all contents.")
-            if confirm_delete:
-                if st.button("Delete and Upload New SCORM Files"):
-                    st.warning(f"Deleting all files under '{language_name}/'...")
-                    for file_version_info, folder_name in bucket.ls(f"{language_name}/"):
-                        bucket.delete_file_version(file_version_info.id_, file_version_info.file_name)
-                    st.success(f"✅ All existing files under '{language_name}' deleted.")
+            if confirm_delete and st.button("Delete and Upload New SCORM Files"):
+                st.warning(f"Deleting all files under '{language_name}/'...")
+                for entry, file_name in all_files:
+                    if file_name.startswith(f"{language_name}/"):
+                        bucket.delete_file_version(entry.id_, file_name)
+                st.success(f"✅ All existing files under '{language_name}' deleted.")
         else:
             st.info(f"'{language_name}' does not exist yet. Ready to upload.")
 
