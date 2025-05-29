@@ -1,2 +1,3 @@
 streamlit
 b2sdk
+python-docx
