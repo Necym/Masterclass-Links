@@ -1,5 +1,3 @@
-# 📦 Streamlit App: View SCORM Links + Upload New Language
-
 import streamlit as st
 import os
 import zipfile
@@ -8,18 +6,23 @@ import tempfile
 import urllib.parse
 from b2sdk.v2 import InMemoryAccountInfo, B2Api
 
-# ─── Backblaze B2 Credentials ───
-B2_KEY_ID = '0057d19983190740000000001'
-B2_APP_KEY = 'K0050E3EGgdBJduyi+MOTBZZzk4Y+go'
-BUCKET_ID = '774d61f9d938638199600714'
-BUCKET_NAME = 'filesfornecym'
+# ─── Backblaze B2 Credentials (from secrets) ───
+B2_KEY_ID = st.secrets["B2"]["B2_KEY_ID"]
+B2_APP_KEY = st.secrets["B2"]["B2_APP_KEY"]
+BUCKET_ID = st.secrets["B2"]["BUCKET_ID"]
+BUCKET_NAME = st.secrets["B2"]["BUCKET_NAME"]
 BASE_URL = f"https://f005.backblazeb2.com/file/{BUCKET_NAME}"
 
 # ─── Connect to Backblaze ───
 info = InMemoryAccountInfo()
 b2_api = B2Api(info)
-b2_api.authorize_account("production", B2_KEY_ID, B2_APP_KEY)
-bucket = b2_api.get_bucket_by_id(BUCKET_ID)
+
+try:
+    b2_api.authorize_account("auto", B2_KEY_ID, B2_APP_KEY)
+    bucket = b2_api.get_bucket_by_id(BUCKET_ID)
+except Exception as e:
+    st.error(f"❌ Failed to connect to Backblaze B2: {e}")
+    st.stop()
 
 # ─── Streamlit Setup ───
 st.set_page_config(page_title="SCORM Review Links")
@@ -53,15 +56,10 @@ if mode == "View Links":
         if sorted_scorms:
             st.subheader(f"SCORM Packages in {selected_language}:")
             for scorm_folder in sorted_scorms:
-                # Safe display name
                 safe_display = scorm_folder.replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('\\', '\\\\')
-
-                # URL encode for safe link
                 encoded_lang = urllib.parse.quote(selected_language)
                 encoded_folder = urllib.parse.quote(scorm_folder)
                 review_link = f"{BASE_URL}/{encoded_lang}/{encoded_folder}/story.html"
-
-                # Display
                 st.markdown(f"📄 [{safe_display}]({review_link})", unsafe_allow_html=False)
         else:
             st.info(f"No SCORM courses found under '{selected_language}'.")
@@ -71,7 +69,6 @@ elif mode == "Upload New Language":
     language_name = st.text_input("Enter new language folder name (e.g., German)")
 
     if language_name:
-        # Check if language exists
         all_files = bucket.ls('')
         existing_languages = {folder_name.strip('/').split('/')[0] for _, folder_name in all_files if folder_name}
 
