@@ -9,17 +9,16 @@ from b2sdk.v2 import InMemoryAccountInfo, B2Api
 # ─── Backblaze B2 Credentials ───
 B2_KEY_ID = "0057d19983190740000000001"
 B2_APP_KEY = "K0050E3EGgdBJduyi+MOTBZZzk4Y+go"
-BUCKET_ID = "774d61f9d938638199600714"
 BUCKET_NAME = "filesfornecym"
 BASE_URL = f"https://f005.backblazeb2.com/file/{BUCKET_NAME}"
 
-# ─── Connect to Backblaze ───
+# ─── Connect to Backblaze B2 ───
 info = InMemoryAccountInfo()
 b2_api = B2Api(info)
 
 try:
-    b2_api.authorize_account("production", "0057d19983190740000000001", "K0050E3EGgdBJduyi+MOTBZZzk4Y+go")
-    bucket = b2_api.get_bucket_by_id(BUCKET_ID)
+    b2_api.authorize_account("production", B2_KEY_ID, B2_APP_KEY)
+    bucket = b2_api.get_bucket_by_name(BUCKET_NAME)
 except Exception as e:
     st.error(f"❌ Failed to connect to Backblaze B2: {e}")
     st.stop()
