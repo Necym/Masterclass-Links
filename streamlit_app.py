@@ -2,10 +2,12 @@ import streamlit as st
 import os
 import zipfile
 import shutil
-import tempfile
+tempfile
 import urllib.parse
 import hashlib
 import requests
+from io import BytesIO
+from docx import Document
 
 # ─── Streamlit Page Config (MUST be first) ───
 st.set_page_config(page_title="SCORM Review Links")
@@ -104,6 +106,35 @@ def upload_file(local_path, b2_path):
     resp = requests.post(upload_url, headers=headers, data=data)
     resp.raise_for_status()
 
+# ─── Build Word Document of Links ───
+def build_links_doc(langs, files):
+    doc = Document()
+    doc.add_heading("SCORM Review Links", 0)
+
+    for lang in sorted(langs):
+        doc.add_heading(lang, level=1)
+        packages = {
+            fn.split("/")[1]
+            for fn in (f["fileName"] for f in files)
+            if fn.startswith(f"{lang}/") and fn.count("/") >= 2
+        }
+        if not packages:
+            doc.add_paragraph("*(no packages found)*")
+            continue
+
+        for pkg in sorted(packages):
+            url = f"{BASE_URL}/{urllib.parse.quote(lang)}/{urllib.parse.quote(pkg)}/story.html"
+            p = doc.add_paragraph(style="List Bullet")
+            p.add_run(f"{pkg}: ")
+            run = p.add_run(url)
+            run.font.color.theme_color = 10
+            run.font.underline = True
+
+    buf = BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf
+
 # ─── Streamlit UI ───
 mode = st.sidebar.radio("Mode", ["View Links", "Upload New Language"])
 
@@ -126,6 +157,16 @@ if mode == "View Links":
                 st.markdown(f"📄 [{safe}]({link})")
         else:
             st.info("No SCORM packages found.")
+
+        # Export to Word
+        if st.button("📄 Export all links to Word"):
+            docx_buf = build_links_doc(langs, files)
+            st.download_button(
+                label="⬇️ Download SCORM Links .docx",
+                data=docx_buf,
+                file_name="scorm_links.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
 
 elif mode == "Upload New Language":
     existing = {f["fileName"].split("/",1)[0] for f in list_files("") if "/" in f["fileName"]}
