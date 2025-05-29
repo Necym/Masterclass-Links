@@ -7,18 +7,19 @@ import urllib.parse
 from b2sdk.v2 import InMemoryAccountInfo, B2Api
 
 # ─── Backblaze B2 Credentials ───
-B2_KEY_ID = "0057d19983190740000000001"
-B2_APP_KEY = "K0050E3EGgdBJduyi+MOTBZZzk4Y+go"
+B2_KEY_ID = "0057d19983190740000000002"
+B2_APP_KEY = "PASTE_YOUR_NEW_FULL_ACCESS_APP_KEY_HERE"
+BUCKET_ID = "774d61f9d938638199600714"
 BUCKET_NAME = "filesfornecym"
 BASE_URL = f"https://f005.backblazeb2.com/file/{BUCKET_NAME}"
 
-# ─── Connect to Backblaze B2 ───
+# ─── Connect to Backblaze ───
 info = InMemoryAccountInfo()
 b2_api = B2Api(info)
 
 try:
     b2_api.authorize_account("production", B2_KEY_ID, B2_APP_KEY)
-    bucket = b2_api.get_bucket_by_name(BUCKET_NAME)
+    bucket = b2_api.get_bucket_by_id(BUCKET_ID)
 except Exception as e:
     st.error(f"❌ Failed to connect to Backblaze B2: {e}")
     st.stop()
