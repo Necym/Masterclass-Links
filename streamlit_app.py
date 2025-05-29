@@ -7,11 +7,12 @@ import urllib.parse
 from b2sdk.v2 import InMemoryAccountInfo, B2Api
 
 # ─── Backblaze B2 Credentials ───
-B2_KEY_ID = "0057d19983190740000000002"
-B2_APP_KEY = "PASTE_YOUR_NEW_FULL_ACCESS_APP_KEY_HERE"
+B2_KEY_ID = "0057d19983190740000000003"
+B2_APP_KEY = "K005tH7/zOTPfBmFlyDMy2cYamvw5y8"
 BUCKET_ID = "774d61f9d938638199600714"
 BUCKET_NAME = "filesfornecym"
 BASE_URL = f"https://f005.backblazeb2.com/file/{BUCKET_NAME}"
+
 
 # ─── Connect to Backblaze ───
 info = InMemoryAccountInfo()
